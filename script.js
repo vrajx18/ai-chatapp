@@ -1,362 +1,194 @@
 
-const status =
-    document.getElementById("status");
+const status = document.getElementById("status");
+const messages = document.getElementById("messages");
+const input = document.getElementById("message");
+const send = document.getElementById("send");
+const copyLink = document.getElementById("copyLink");
 
-const messages =
-    document.getElementById("messages");
+const params = new URLSearchParams(window.location.search);
 
-const input =
-    document.getElementById("message");
-
-const send =
-    document.getElementById("send");
-
-const copyLink =
-    document.getElementById("copyLink");
-
-
-/*
-    URL mathi room ID levani.
-*/
-
-const params =
-    new URLSearchParams(
-        window.location.search
-    );
-
-let roomId =
-    params.get("room");
-
-
-/*
-    First user hoy to new room banavo.
-*/
+let roomId = params.get("room");
 
 if (!roomId) {
-
-    roomId =
-        Math.random()
-            .toString(36)
-            .substring(2, 10);
-
-    history.replaceState(
-        null,
-        "",
-        "?room=" + roomId
-    );
+    roomId = Math.random().toString(36).substring(2, 10);
+    history.replaceState(null, "", "?room=" + roomId);
 }
 
-
-/*
-    Aa room nu permanent owner ID.
-
-    Friend aa ID sathe connect thase.
-*/
-
-const ownerId =
-    "private-chat-" + roomId;
-
-
-/*
-    Peer create.
-
-    Host first open kare tyare owner ID male.
-*/
+const ownerId = "private-chat-" + roomId;
 
 let peer;
-
 let connection = null;
 
-let isHost = false;
+
+// Host banva try kare
+peer = new Peer(ownerId);
 
 
-/*
-    Pela owner ID thi Peer banavvano try.
-
-    Jo ID available hoy → host.
-
-    Jo unavailable hoy → friend.
-*/
-
-peer =
-    new Peer(ownerId);
-
-
-/*
-    Peer successfully open thay
-*/
-
-peer.on("open", function(id) {
-
-    isHost = true;
-
-    status.innerText =
-        "Waiting for friend...";
-
+// Host ready
+peer.on("open", function() {
+    status.innerText = "Waiting for friend...";
 });
 
 
-/*
-    Host ne friend connection male.
-*/
-
+// Koi friend connect thay
 peer.on("connection", function(conn) {
+
+    // Ek friend already connected hoy
+    if (connection && connection.open) {
+
+        conn.on("open", function() {
+            conn.send("CHAT_FULL");
+
+            setTimeout(function() {
+                conn.close();
+            }, 300);
+        });
+
+        return;
+    }
 
     connection = conn;
 
     setupConnection();
-
 });
 
 
-/*
-    Jo owner ID already used hoy,
-    to aa second device chhe.
-
-    Navo random Peer banavo
-    ane owner sathe connect karo.
-*/
-
+// Room already occupied hoy
 peer.on("error", function(error) {
 
-    if (
-        error.type ===
-        "unavailable-id"
-    ) {
+    if (error.type === "unavailable-id") {
 
         peer.destroy();
 
-        peer =
-            new Peer();
+        peer = new Peer();
 
         peer.on("open", function() {
 
-            isHost = false;
+            status.innerText = "Connecting...";
 
-            status.innerText =
-                "Connecting...";
-
-            connection =
-                peer.connect(
-                    ownerId
-                );
+            connection = peer.connect(ownerId);
 
             setupConnection();
-
         });
-
     }
-
 });
 
 
-/*
-    Connection setup
-*/
-
+// Connection setup
 function setupConnection() {
 
-    if (!connection) {
-        return;
-    }
+    if (!connection) return;
 
 
-    connection.on(
-        "open",
-        function() {
+    connection.on("open", function() {
 
-            status.innerText =
-                "● Online";
+        status.innerText = "● Online";
+        status.classList.add("online");
+    });
 
-            status.classList.add(
-                "online"
-            );
 
+    connection.on("data", function(data) {
+
+        if (data === "CHAT_FULL") {
+
+            alert("This chat is already full.");
+
+            status.innerText = "Chat Full";
+            status.classList.remove("online");
+
+            connection.close();
+
+            return;
         }
-    );
+
+        addMessage(data, false);
+    });
 
 
-    /*
-        Friend message receive
-    */
+    connection.on("close", function() {
 
-    connection.on(
-        "data",
-        function(data) {
+        status.innerText = "Friend disconnected";
+        status.classList.remove("online");
 
-            addMessage(
-                data,
-                false
-            );
-
-        }
-    );
-
-
-    connection.on(
-        "close",
-        function() {
-
-            status.innerText =
-                "Friend disconnected";
-
-            status.classList.remove(
-                "online"
-            );
-
-        }
-    );
-
+        connection = null;
+    });
 }
 
 
-/*
-    Send message
-*/
-
+// Message send
 function sendMessage() {
 
-    const text =
-        input.value.trim();
+    const text = input.value.trim();
+
+    if (text === "") return;
 
 
-    if (text === "") {
-        return;
-    }
+    if (!connection || !connection.open) {
 
-
-    if (
-        !connection ||
-        !connection.open
-    ) {
-
-        alert(
-            "Friend is not connected yet."
-        );
+        alert("Friend is not connected yet.");
 
         return;
     }
 
-
-    /*
-        Message direct P2P channel par.
-    */
 
     connection.send(text);
 
-
-    /*
-        Own screen par.
-    */
-
-    addMessage(
-        text,
-        true
-    );
-
+    addMessage(text, true);
 
     input.value = "";
 
     input.focus();
-
 }
 
 
-send.onclick =
-    sendMessage;
+// Send button
+send.onclick = sendMessage;
 
 
-/*
-    Enter = Send
-*/
+// Enter thi message send
+input.addEventListener("keydown", function(event) {
 
-input.addEventListener(
-    "keydown",
-    function(event) {
-
-        if (event.key === "Enter") {
-
-            sendMessage();
-
-        }
-
+    if (event.key === "Enter") {
+        sendMessage();
     }
-);
+});
 
 
-/*
-    Message display
-*/
+// Message screen par show
+function addMessage(text, mine) {
 
-function addMessage(
-    text,
-    mine
-) {
+    const div = document.createElement("div");
 
-    const div =
-        document.createElement(
-            "div"
-        );
-
-
-    div.className =
-        mine
+    div.className = mine
         ? "message mine"
         : "message friend";
 
-
-    /*
-        innerText use karyu,
-        etle HTML execute nahi thay.
-    */
-
-    div.innerText =
-        text;
-
+    div.innerText = text;
 
     messages.appendChild(div);
 
-
-    messages.scrollTop =
-        messages.scrollHeight;
-
+    messages.scrollTop = messages.scrollHeight;
 }
 
 
-/*
-    Copy exact room URL
-*/
+// Chat link copy
+copyLink.onclick = async function() {
 
-copyLink.onclick =
-    async function() {
+    try {
 
-        try {
+        await navigator.clipboard.writeText(window.location.href);
 
-            await navigator.clipboard.writeText(
-                window.location.href
-            );
+        copyLink.innerText = "✓ Link Copied";
 
-            copyLink.innerText =
-                "✓ Link Copied";
+        setTimeout(function() {
 
-            setTimeout(
-                function() {
+            copyLink.innerText = "🔗 Copy Chat Link";
 
-                    copyLink.innerText =
-                        "🔗 Copy Chat Link";
+        }, 1500);
 
-                },
-                1500
-            );
+    } catch(error) {
 
-        }
-        catch(error) {
+        prompt("Copy this link:", window.location.href);
+    }
+};
 
-            prompt(
-                "Copy this link:",
-                window.location.href
-            );
-
-        }
-
-    };

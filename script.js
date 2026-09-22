@@ -1,3 +1,4 @@
+
 const status =
     document.getElementById("status");
 
@@ -13,6 +14,11 @@ const send =
 const copyLink =
     document.getElementById("copyLink");
 
+
+/*
+    URL mathi room ID levani.
+*/
+
 const params =
     new URLSearchParams(
         window.location.search
@@ -20,6 +26,11 @@ const params =
 
 let roomId =
     params.get("room");
+
+
+/*
+    First user hoy to new room banavo.
+*/
 
 if (!roomId) {
 
@@ -35,27 +46,31 @@ if (!roomId) {
     );
 }
 
+
+/*
+    Aa room nu permanent owner ID.
+*/
+
 const ownerId =
     "private-chat-" + roomId;
+
 
 let peer;
 let connection = null;
 let isHost = false;
 
-/* Host na connections */
-let connectedUsers = 0;
+
+/*
+    Pela owner ID thi Peer banavvano try.
+*/
+
+peer =
+    new Peer(ownerId);
 
 
-/* =========================
-   PEER CREATE
-========================= */
-
-peer = new Peer(ownerId);
-
-
-/* =========================
-   PEER OPEN
-========================= */
+/*
+    Peer successfully open thay.
+*/
 
 peer.on("open", function(id) {
 
@@ -63,48 +78,58 @@ peer.on("open", function(id) {
 
     status.innerText =
         "Waiting for friend...";
-
 });
 
 
-/* =========================
-   HOST CONNECTION
-========================= */
+/*
+    Koi friend connection kare.
+*/
 
 peer.on("connection", function(conn) {
 
-    /* Already one person connected */
-    if (connectedUsers >= 1) {
+    /*
+        Jo ek friend already connected chhe
+        to third person ne allow nahi karvo.
+    */
 
-        conn.on("open", function() {
+    if (
+        connection &&
+        connection.open
+    ) {
 
-            conn.send({
-                type: "room-full"
-            });
+        conn.on(
+            "open",
+            function() {
 
-            setTimeout(function() {
-                conn.close();
-            }, 500);
-        });
+                conn.send("CHAT_FULL");
+
+                setTimeout(
+                    function() {
+                        conn.close();
+                    },
+                    500
+                );
+            }
+        );
 
         return;
     }
 
 
-    /* First friend allowed */
+    /*
+        First friend ne connection aapvu.
+    */
 
     connection = conn;
 
-    connectedUsers = 1;
-
     setupConnection();
-
 });
 
 
-/* =========================
-   SECOND DEVICE
-========================= */
+/*
+    Jo owner ID already used hoy
+    to aa second user chhe.
+*/
 
 peer.on("error", function(error) {
 
@@ -119,32 +144,32 @@ peer.on("error", function(error) {
             new Peer();
 
 
-        peer.on("open", function() {
+        peer.on(
+            "open",
+            function() {
 
-            isHost = false;
+                isHost = false;
 
-            status.innerText =
-                "Connecting...";
-
-
-            connection =
-                peer.connect(
-                    ownerId
-                );
+                status.innerText =
+                    "Connecting...";
 
 
-            setupConnection();
+                connection =
+                    peer.connect(
+                        ownerId
+                    );
 
-        });
 
+                setupConnection();
+            }
+        );
     }
-
 });
 
 
-/* =========================
-   CONNECTION SETUP
-========================= */
+/*
+    Connection setup.
+*/
 
 function setupConnection() {
 
@@ -152,6 +177,10 @@ function setupConnection() {
         return;
     }
 
+
+    /*
+        Connection open.
+    */
 
     connection.on(
         "open",
@@ -163,33 +192,40 @@ function setupConnection() {
             status.classList.add(
                 "online"
             );
-
         }
     );
 
+
+    /*
+        Friend no message receive.
+    */
 
     connection.on(
         "data",
         function(data) {
 
-            /* Room full message */
+            /*
+                Jo chat full message male
+                to third person chhe.
+            */
 
             if (
-                data &&
-                data.type ===
-                "room-full"
+                data ===
+                "CHAT_FULL"
             ) {
 
                 status.innerText =
-                    "Room Full";
+                    "Chat Full";
 
                 status.classList.remove(
                     "online"
                 );
 
+
                 alert(
-                    "Room is currently unavailable.\n\n2 people are already connected."
+                    "This chat is already full."
                 );
+
 
                 connection.close();
 
@@ -197,24 +233,25 @@ function setupConnection() {
             }
 
 
-            /* Normal message */
+            /*
+                Normal message.
+            */
 
             addMessage(
                 data,
                 false
             );
-
         }
     );
 
 
+    /*
+        Friend disconnect.
+    */
+
     connection.on(
         "close",
         function() {
-
-            if (isHost) {
-                connectedUsers = 0;
-            }
 
             status.innerText =
                 "Friend disconnected";
@@ -223,15 +260,15 @@ function setupConnection() {
                 "online"
             );
 
+            connection = null;
         }
     );
-
 }
 
 
-/* =========================
-   SEND MESSAGE
-========================= */
+/*
+    Send message.
+*/
 
 function sendMessage() {
 
@@ -257,8 +294,16 @@ function sendMessage() {
     }
 
 
+    /*
+        Message P2P channel par send.
+    */
+
     connection.send(text);
 
+
+    /*
+        Own screen par message.
+    */
 
     addMessage(
         text,
@@ -269,7 +314,6 @@ function sendMessage() {
     input.value = "";
 
     input.focus();
-
 }
 
 
@@ -277,30 +321,25 @@ send.onclick =
     sendMessage;
 
 
-/* =========================
-   ENTER = SEND
-========================= */
+/*
+    Enter = Send.
+*/
 
 input.addEventListener(
     "keydown",
     function(event) {
 
-        if (
-            event.key ===
-            "Enter"
-        ) {
+        if (event.key === "Enter") {
 
             sendMessage();
-
         }
-
     }
 );
 
 
-/* =========================
-   DISPLAY MESSAGE
-========================= */
+/*
+    Message display.
+*/
 
 function addMessage(
     text,
@@ -328,13 +367,12 @@ function addMessage(
 
     messages.scrollTop =
         messages.scrollHeight;
-
 }
 
 
-/* =========================
-   COPY LINK
-========================= */
+/*
+    Copy exact room URL.
+*/
 
 copyLink.onclick =
     async function() {
@@ -368,7 +406,6 @@ copyLink.onclick =
                 "Copy this link:",
                 window.location.href
             );
-
         }
-
     };
+

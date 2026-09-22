@@ -7,93 +7,127 @@ const copyLink = document.getElementById("copyLink");
 
 const params = new URLSearchParams(window.location.search);
 
-let roomId = params.get("room");
-
-if (!roomId) {
-    roomId = Math.random().toString(36).substring(2, 10);
-    history.replaceState(null, "", "?room=" + roomId);
-}
-
-const ownerId = "private-chat-" + roomId;
+let hostId = params.get("host");
 
 let peer;
 let connection = null;
+let isHost = false;
 
 
-// Host banva try kare
-peer = new Peer(ownerId);
+// --------------------------------------------------
+// JO LINK MA HOST ID NATHI
+// TO AA FIRST PERSON CHE
+// --------------------------------------------------
+
+if (!hostId) {
+
+    // random peer banavo
+    peer = new Peer();
+
+    peer.on("open", function(id) {
+
+        isHost = true;
+
+        hostId = id;
+
+        // URL ma host id add karo
+        history.replaceState(
+            null,
+            "",
+            "?host=" + hostId
+        );
+
+        status.innerText = "Waiting for friend...";
+    });
 
 
-// Host ready
-peer.on("open", function() {
-    status.innerText = "Waiting for friend...";
-});
+    // Friend connect thay
+    peer.on("connection", function(conn) {
+
+        // already friend connected hoy
+        if (connection && connection.open) {
+
+            conn.on("open", function() {
+
+                conn.send("CHAT_FULL");
+
+                setTimeout(function() {
+
+                    conn.close();
+
+                }, 300);
+            });
+
+            return;
+        }
 
 
-// Koi friend connect thay
-peer.on("connection", function(conn) {
+        connection = conn;
 
-    // Ek friend already connected hoy
-    if (connection && connection.open) {
-
-        conn.on("open", function() {
-            conn.send("CHAT_FULL");
-
-            setTimeout(function() {
-                conn.close();
-            }, 300);
-        });
-
-        return;
-    }
-
-    connection = conn;
-
-    setupConnection();
-});
+        setupConnection();
+    });
+}
 
 
-// Room already occupied hoy
-peer.on("error", function(error) {
+// --------------------------------------------------
+// JO LINK MA HOST ID CHE
+// TO AA SECOND PERSON CHE
+// --------------------------------------------------
 
-    if (error.type === "unavailable-id") {
+else {
 
-        peer.destroy();
-
-        peer = new Peer();
-
-        peer.on("open", function() {
-
-            status.innerText = "Connecting...";
-
-            connection = peer.connect(ownerId);
-
-            setupConnection();
-        });
-    }
-});
+    // random peer banavo
+    peer = new Peer();
 
 
-// Connection setup
+    peer.on("open", function() {
+
+        status.innerText = "Connecting...";
+
+        // direct host sathe connect
+        connection = peer.connect(hostId);
+
+        setupConnection();
+    });
+
+
+    peer.on("error", function(error) {
+
+        status.innerText = "Connection failed";
+
+        console.log(error);
+    });
+}
+
+
+// --------------------------------------------------
+// CONNECTION SETUP
+// --------------------------------------------------
+
 function setupConnection() {
 
     if (!connection) return;
 
 
+    // connection open
     connection.on("open", function() {
 
         status.innerText = "● Online";
+
         status.classList.add("online");
     });
 
 
+    // message receive
     connection.on("data", function(data) {
 
+        // Chat full
         if (data === "CHAT_FULL") {
 
             alert("This chat is already full.");
 
             status.innerText = "Chat Full";
+
             status.classList.remove("online");
 
             connection.close();
@@ -101,24 +135,41 @@ function setupConnection() {
             return;
         }
 
+
+        // normal message
         addMessage(data, false);
     });
 
 
+    // connection close
     connection.on("close", function() {
 
         status.innerText = "Friend disconnected";
+
         status.classList.remove("online");
 
         connection = null;
     });
+
+
+    // connection error
+    connection.on("error", function(error) {
+
+        console.log(error);
+
+        status.innerText = "Connection error";
+    });
 }
 
 
-// Message send
+// --------------------------------------------------
+// SEND MESSAGE
+// --------------------------------------------------
+
 function sendMessage() {
 
     const text = input.value.trim();
+
 
     if (text === "") return;
 
@@ -131,10 +182,15 @@ function sendMessage() {
     }
 
 
+    // friend ne message moklo
     connection.send(text);
 
+
+    // own message show
     addMessage(text, true);
 
+
+    // input clear
     input.value = "";
 
     input.focus();
@@ -145,25 +201,37 @@ function sendMessage() {
 send.onclick = sendMessage;
 
 
-// Enter thi message send
+// Enter press
 input.addEventListener("keydown", function(event) {
 
     if (event.key === "Enter") {
+
         sendMessage();
     }
 });
 
 
-// Message screen par show
+// --------------------------------------------------
+// MESSAGE SHOW
+// --------------------------------------------------
+
 function addMessage(text, mine) {
 
     const div = document.createElement("div");
 
-    div.className = mine
-        ? "message mine"
-        : "message friend";
+
+    if (mine) {
+
+        div.className = "message mine";
+
+    } else {
+
+        div.className = "message friend";
+    }
+
 
     div.innerText = text;
+
 
     messages.appendChild(div);
 
@@ -171,14 +239,34 @@ function addMessage(text, mine) {
 }
 
 
-// Chat link copy
+// --------------------------------------------------
+// COPY CHAT LINK
+// --------------------------------------------------
+
 copyLink.onclick = async function() {
+
+    // host id ready nathi
+    if (!hostId) {
+
+        alert("Please wait, chat is starting...");
+
+        return;
+    }
+
+
+    const chatLink =
+        window.location.origin +
+        window.location.pathname +
+        "?host=" +
+        hostId;
+
 
     try {
 
-        await navigator.clipboard.writeText(window.location.href);
+        await navigator.clipboard.writeText(chatLink);
 
         copyLink.innerText = "✓ Link Copied";
+
 
         setTimeout(function() {
 
@@ -188,7 +276,6 @@ copyLink.onclick = async function() {
 
     } catch(error) {
 
-        prompt("Copy this link:", window.location.href);
+        prompt("Copy this link:", chatLink);
     }
 };
-

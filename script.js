@@ -56,8 +56,10 @@ const ownerId =
 
 
 let peer;
+
 let connection = null;
-let isHost = false;
+
+let connected = false;
 
 
 /*
@@ -74,43 +76,34 @@ peer =
 
 peer.on("open", function(id) {
 
-    isHost = true;
-
     status.innerText =
         "Waiting for friend...";
 });
 
 
 /*
-    Koi friend connection kare.
+    Friend connection kare.
 */
 
 peer.on("connection", function(conn) {
 
     /*
-        Jo ek friend already connected chhe
+        Jo already ek friend connected chhe
         to third person ne allow nahi karvo.
     */
 
-    if (
-        connection &&
-        connection.open
-    ) {
+    if (connected) {
 
-        conn.on(
-            "open",
-            function() {
+        conn.on("open", function() {
 
-                conn.send("CHAT_FULL");
+            conn.send("CHAT_FULL");
 
-                setTimeout(
-                    function() {
-                        conn.close();
-                    },
-                    500
-                );
-            }
-        );
+            setTimeout(function() {
+
+                conn.close();
+
+            }, 500);
+        });
 
         return;
     }
@@ -127,8 +120,8 @@ peer.on("connection", function(conn) {
 
 
 /*
-    Jo owner ID already used hoy
-    to aa second user chhe.
+    Jo owner ID already use ma hoy
+    to aa second person chhe.
 */
 
 peer.on("error", function(error) {
@@ -144,25 +137,23 @@ peer.on("error", function(error) {
             new Peer();
 
 
-        peer.on(
-            "open",
-            function() {
+        peer.on("open", function() {
 
-                isHost = false;
-
-                status.innerText =
-                    "Connecting...";
+            status.innerText =
+                "Connecting...";
 
 
-                connection =
-                    peer.connect(
-                        ownerId
-                    );
+            connection =
+                peer.connect(
+                    ownerId,
+                    {
+                        reliable: true
+                    }
+                );
 
 
-                setupConnection();
-            }
-        );
+            setupConnection();
+        });
     }
 });
 
@@ -186,6 +177,8 @@ function setupConnection() {
         "open",
         function() {
 
+            connected = true;
+
             status.innerText =
                 "● Online";
 
@@ -205,8 +198,7 @@ function setupConnection() {
         function(data) {
 
             /*
-                Jo chat full message male
-                to third person chhe.
+                Third person ne chat full.
             */
 
             if (
@@ -253,21 +245,39 @@ function setupConnection() {
         "close",
         function() {
 
+            connected = false;
+
+            connection = null;
+
             status.innerText =
                 "Friend disconnected";
 
             status.classList.remove(
                 "online"
             );
+        }
+    );
 
-            connection = null;
+
+    /*
+        Connection error.
+    */
+
+    connection.on(
+        "error",
+        function(error) {
+
+            console.log(error);
+
+            status.innerText =
+                "Connection error";
         }
     );
 }
 
 
 /*
-    Send message.
+    Message send.
 */
 
 function sendMessage() {
@@ -295,7 +305,7 @@ function sendMessage() {
 
 
     /*
-        Message P2P channel par send.
+        Message direct P2P channel par.
     */
 
     connection.send(text);
@@ -316,6 +326,10 @@ function sendMessage() {
     input.focus();
 }
 
+
+/*
+    Send button.
+*/
 
 send.onclick =
     sendMessage;
@@ -358,11 +372,18 @@ function addMessage(
         : "message friend";
 
 
+    /*
+        innerText use karyu
+        etle HTML execute nahi thay.
+    */
+
     div.innerText =
         text;
 
 
-    messages.appendChild(div);
+    messages.appendChild(
+        div
+    );
 
 
     messages.scrollTop =
@@ -408,4 +429,3 @@ copyLink.onclick =
             );
         }
     };
-

@@ -1,0 +1,76 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Private Chat</title>
+
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+<body>
+
+    <div class="chat-box">
+
+        <div class="header">
+
+            <div class="avatar">
+                💬
+            </div>
+
+            <div>
+                <h3>Private Chat</h3>
+                <p id="status">Connecting...</p>
+            </div>
+
+        </div>
+
+
+        <div class="messages" id="messages">
+
+            <div class="info">
+                🔒 Private P2P Chat
+            </div>
+
+        </div>
+
+
+        <div class="bottom">
+
+            <input
+                type="text"
+                id="message"
+                placeholder="Message..."
+            >
+
+            <button id="send">
+                ➤
+            </button>
+
+        </div>
+
+
+        <button id="copyLink">
+            🔗 Copy Chat Link
+        </button>
+
+    </div>
+
+
+    <!-- PeerJS -->
+
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
+
